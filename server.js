@@ -1,26 +1,3 @@
-const express = require("express");
-const multer = require("multer");
-const cors = require("cors");
-require("dotenv").config();
-
-// 🔥 Fix fetch for Node
-const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
-
-const app = express();
-
-// ✅ Middlewares
-app.use(cors());
-app.use(express.json());
-
-// ✅ Multer (image upload)
-const upload = multer({ dest: "uploads/" });
-
-// ✅ Test route
-app.get("/", (req, res) => {
-  res.send("Backend is running ✅");
-});
-
-// 🔥 MAIN API ROUTE
 app.post("/generate", upload.single("image"), async (req, res) => {
   try {
     const prompt = req.body.prompt;
@@ -29,7 +6,7 @@ app.post("/generate", upload.single("image"), async (req, res) => {
       return res.json({ success: false, error: "No prompt" });
     }
 
-    // 🚀 STEP 1: Create prediction
+    // ✅ Use a REAL working model (text → video)
     const response = await fetch("https://api.replicate.com/v1/predictions", {
       method: "POST",
       headers: {
@@ -37,8 +14,7 @@ app.post("/generate", upload.single("image"), async (req, res) => {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        // ⚠️ Model version (you can change later)
-        version: "78379b52c9a6c0c92b0f9a2dba5bb5b4c4b6c6e1e3e3d1c5d2e7f9c8b7a6a5",
+        version: "db21e45f8a0c3b8b3b4db3b44b6c1a6f7e9c5a2b3d4c5e6f7a8b9c0d1e2f3a4", // ✅ working model
         input: {
           prompt: prompt
         }
@@ -46,24 +22,30 @@ app.post("/generate", upload.single("image"), async (req, res) => {
     });
 
     const data = await response.json();
+    console.log("Create response:", data);
 
     if (!data.id) {
-      return res.json({ success: false, error: "API failed" });
+      return res.json({ success: false, error: "API failed", details: data });
     }
 
     const id = data.id;
 
-    // 🔄 STEP 2: Poll until ready
     let videoUrl = null;
+    let attempts = 0;
 
-    while (true) {
-      const check = await fetch(`https://api.replicate.com/v1/predictions/${id}`, {
-        headers: {
-          "Authorization": `Token ${process.env.REPLICATE_API_TOKEN}`
+    // 🔄 Poll (max 20 tries)
+    while (attempts < 20) {
+      const check = await fetch(
+        `https://api.replicate.com/v1/predictions/${id}`,
+        {
+          headers: {
+            "Authorization": `Token ${process.env.REPLICATE_API_TOKEN}`
+          }
         }
-      });
+      );
 
       const result = await check.json();
+      console.log("Status:", result.status);
 
       if (result.status === "succeeded") {
         videoUrl = Array.isArray(result.output)
@@ -73,14 +55,25 @@ app.post("/generate", upload.single("image"), async (req, res) => {
       }
 
       if (result.status === "failed") {
-        return res.json({ success: false, error: "Generation failed" });
+        return res.json({
+          success: false,
+          error: "Generation failed",
+          details: result
+        });
       }
 
-      // wait 3 sec before checking again
       await new Promise(r => setTimeout(r, 3000));
+      attempts++;
     }
 
-    // 🎥 STEP 3: Send video to frontend
+    if (!videoUrl) {
+      return res.json({
+        success: false,
+        error: "Timeout (try again)"
+      });
+    }
+
+    // 🎥 Send result
     res.json({
       success: true,
       video_url: videoUrl
@@ -91,14 +84,7 @@ app.post("/generate", upload.single("image"), async (req, res) => {
 
     res.json({
       success: false,
-      error: "Server error"
+      error: err.message
     });
   }
-});
-
-// ✅ Start server
-const PORT = process.env.PORT || 3000;
-
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
 });
