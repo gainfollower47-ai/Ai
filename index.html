@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>PhotoMotion AI</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #0ea5e9, #38bdf8);
+      color: white;
+      text-align: center;
+    }
+
+    .container {
+      padding: 20px;
+      max-width: 600px;
+      margin: auto;
+      animation: fadeIn 1s ease;
+    }
+
+    h1 {
+      font-size: 32px;
+      margin-bottom: 10px;
+    }
+
+    input, textarea {
+      width: 90%;
+      padding: 12px;
+      margin: 10px 0;
+      border-radius: 10px;
+      border: none;
+      outline: none;
+    }
+
+    textarea {
+      height: 80px;
+      resize: none;
+    }
+
+    button {
+      padding: 12px 20px;
+      margin: 10px;
+      border-radius: 20px;
+      border: none;
+      background: white;
+      color: #0284c7;
+      font-weight: bold;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    button:hover {
+      transform: scale(1.05);
+    }
+
+    img, video {
+      width: 100%;
+      border-radius: 12px;
+      margin-top: 10px;
+      animation: fadeIn 0.5s ease;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .presets button {
+      background: rgba(255,255,255,0.2);
+      color: white;
+    }
+
+    .loader {
+      border: 5px solid rgba(255,255,255,0.3);
+      border-top: 5px solid white;
+      border-radius: 50%;
+      width: 50px;
+      height: 50px;
+      margin: 20px auto;
+      animation: spin 1s linear infinite;
+    }
+
+    .progress-bar {
+      width: 90%;
+      height: 10px;
+      background: rgba(255,255,255,0.3);
+      border-radius: 10px;
+      margin: 10px auto;
+    }
+
+    .progress {
+      height: 100%;
+      width: 0%;
+      background: white;
+      border-radius: 10px;
+      transition: width 0.2s;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px);}
+      to { opacity: 1; transform: translateY(0);}
+    }
+  </style>
+</head>
+
+<body>
+
+<div id="home" class="container">
+  <h1>🎬 PhotoMotion AI</h1>
+
+  <input type="file" id="imageInput" accept="image/*" />
+
+  <img id="preview" class="hidden" />
+
+  <textarea id="prompt" placeholder="Describe your video..."></textarea>
+
+  <div class="presets">
+    <button onclick="setPreset('Cinematic')">Cinematic</button>
+    <button onclick="setPreset('Anime Style')">Anime</button>
+    <button onclick="setPreset('Slow Motion')">Slow Motion</button>
+  </div>
+
+  <button onclick="generate()">✨ Generate Video</button>
+</div>
+
+<!-- PROCESSING -->
+<div id="processing" class="container hidden">
+  <h2>Processing... ✨</h2>
+  <div class="loader"></div>
+</div>
+
+<!-- OUTPUT -->
+<div id="output" class="container hidden">
+  <h2>Your Video 🎥</h2>
+
+  <video id="video" controls autoplay loop></video>
+
+  <button onclick="downloadVideo()">⬇️ Download</button>
+
+  <div class="progress-bar">
+    <div id="progress" class="progress"></div>
+  </div>
+</div>
+
+<script>
+  let imageUrl = "";
+  let progress = 0;
+
+  const home = document.getElementById("home");
+  const processing = document.getElementById("processing");
+  const output = document.getElementById("output");
+
+  document.getElementById("imageInput").onchange = function(e) {
+    const file = e.target.files[0];
+    if (file) {
+      imageUrl = URL.createObjectURL(file);
+      const preview = document.getElementById("preview");
+      preview.src = imageUrl;
+      preview.classList.remove("hidden");
+    }
+  };
+
+  function setPreset(text) {
+    document.getElementById("prompt").value = text;
+  }
+
+  function generate() {
+    const prompt = document.getElementById("prompt").value;
+
+    if (!imageUrl || !prompt) {
+      alert("Upload image & enter prompt");
+      return;
+    }
+
+    home.classList.add("hidden");
+    processing.classList.remove("hidden");
+
+    setTimeout(() => {
+      processing.classList.add("hidden");
+      output.classList.remove("hidden");
+
+      document.getElementById("video").src =
+        "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
+    }, 3000);
+  }
+
+  function downloadVideo() {
+    progress = 0;
+    const bar = document.getElementById("progress");
+
+    const interval = setInterval(() => {
+      progress += 10;
+      bar.style.width = progress + "%";
+
+      if (progress >= 100) {
+        clearInterval(interval);
+        alert("Download Complete 🎉");
+      }
+    }, 200);
+  }
+</script>
+
+</body>
+</html>
