@@ -1,96 +1,59 @@
 const express = require("express");
 const multer = require("multer");
 const cors = require("cors");
-const axios = require("axios");
 require("dotenv").config();
 
 const app = express();
+
+// ✅ Middlewares
 app.use(cors());
 app.use(express.json());
 
-// Storage config
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "uploads/");
-  },
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + "-" + file.originalname);
-  }
+// ✅ Multer setup (store file temporarily)
+const upload = multer({ dest: "uploads/" });
+
+// ✅ Test route (so browser doesn't show "Cannot GET /")
+app.get("/", (req, res) => {
+  res.send("Backend is running ✅");
 });
 
-const upload = multer({ storage });
-
-// 🔥 Generate Video Route
+// 🔥 MAIN ROUTE
 app.post("/generate", upload.single("image"), async (req, res) => {
   try {
-    const prompt = req.body.prompt;
-    const imagePath = req.file.path;
-
-    console.log("Prompt:", prompt);
-    console.log("Image:", imagePath);
-
-    // STEP 1: Upload image to temporary hosting (you can use Cloudinary or similar)
-    // For demo, we'll assume it's accessible publicly
-
-    // STEP 2: Call Replicate API (example model)
-    const response = await axios.post(
-      "https://api.replicate.com/v1/predictions",
-      {
-        version: "db21e45c6c2a8b1d1b5e2f9bcb8c4d8a", // example model version
-        input: {
-          image: "https://your-public-image-url.com/image.jpg",
-          prompt: prompt
-        }
-      },
-      {
-        headers: {
-          Authorization: `Token ${process.env.REPLICATE_API_TOKEN}`,
-          "Content-Type": "application/json"
-        }
-      }
-    );
-
-    const prediction = response.data;
-
-    // STEP 3: Poll until complete
-    let result;
-    while (true) {
-      const poll = await axios.get(
-        `https://api.replicate.com/v1/predictions/${prediction.id}`,
-        {
-          headers: {
-            Authorization: `Token ${process.env.REPLICATE_API_TOKEN}`
-          }
-        }
-      );
-
-      if (poll.data.status === "succeeded") {
-        result = poll.data.output;
-        break;
-      }
-
-      if (poll.data.status === "failed") {
-        throw new Error("Generation failed");
-      }
-
-      await new Promise(r => setTimeout(r, 2000));
+    // ✅ Check if file exists
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        error: "No image uploaded"
+      });
     }
 
-    res.json({
+    const prompt = req.body.prompt;
+
+    console.log("Prompt:", prompt);
+    console.log("Image file:", req.file.filename);
+
+    // 🚀 TEMP: send dummy video (so frontend works)
+    // Later we will replace with real AI
+    return res.json({
       success: true,
-      videoUrl: result
+      video_url:
+        "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
     });
 
   } catch (err) {
-    console.error(err);
+    console.error("Error:", err);
+
     res.status(500).json({
       success: false,
-      error: err.message
+      error: "Server error"
     });
   }
 });
 
-// Start server
-app.listen(process.env.PORT, () => {
-  console.log(`Server running on port ${process.env.PORT}`);
+// ✅ IMPORTANT: use PORT properly (Render needs this)
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
